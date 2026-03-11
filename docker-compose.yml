@@ -1,0 +1,52 @@
+version: '3.9'
+
+services:
+  planner-db:
+    image: postgres:16-alpine
+    container_name: planner-db
+    environment:
+      POSTGRES_DB: planner_db
+      POSTGRES_USER: planner_user
+      POSTGRES_PASSWORD: planner_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - planner_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U planner_user -d planner_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  planner-service:
+    build: .
+    container_name: planner-service
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    ports:
+      - "8002:8000"
+    environment:
+      SECRET_KEY: django-insecure-dev-key-change-in-production
+      DEBUG: "True"
+      ALLOWED_HOSTS: "localhost 127.0.0.1 planner-service"
+      DB_NAME: planner_db
+      DB_USER: planner_user
+      DB_PASSWORD: planner_pass
+      DB_HOST: planner-db
+      DB_PORT: "5432"
+      REDIS_URL: redis://planner-redis:6379/0
+    depends_on:
+      planner-db:
+        condition: service_healthy
+      planner-redis:
+        condition: service_started
+
+  planner-redis:
+    image: redis:7-alpine
+    container_name: planner-redis
+    ports:
+      - "6380:6379"
+
+volumes:
+  planner_pgdata:
