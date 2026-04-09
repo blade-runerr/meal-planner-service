@@ -1,9 +1,19 @@
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.openapi import OpenApiTypes
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import UserProfile
 from .serializers import UserProfileSerializer
+
+USER_ID_HEADER = OpenApiParameter(
+    name='X-User-Id',
+    type=OpenApiTypes.INT,
+    location=OpenApiParameter.HEADER,
+    required=True,
+    description='ID пользователя из auth-service',
+)
 
 
 def get_user_id_from_request(request):
@@ -24,8 +34,13 @@ def get_user_id_from_request(request):
 
 
 class ProfileCreateView(APIView):
-    """POST /profiles — create or update user profile settings."""
 
+    @extend_schema(
+        summary='Создать / обновить профиль',
+        request=UserProfileSerializer,
+        responses={201: UserProfileSerializer, 200: UserProfileSerializer},
+        parameters=[USER_ID_HEADER],
+    )
     def post(self, request):
         user_id, error_response = get_user_id_from_request(request)
         if error_response:
@@ -41,8 +56,12 @@ class ProfileCreateView(APIView):
 
 
 class ProfileMeView(APIView):
-    """GET /profiles/me — retrieve current user profile."""
 
+    @extend_schema(
+        summary='Получить свой профиль',
+        responses={200: UserProfileSerializer, 404: None},
+        parameters=[USER_ID_HEADER],
+    )
     def get(self, request):
         user_id, error_response = get_user_id_from_request(request)
         if error_response:

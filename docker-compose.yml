@@ -36,6 +36,11 @@ services:
       DB_HOST: planner-db
       DB_PORT: "5432"
       REDIS_URL: redis://planner-redis:6379/0
+      # MOCK_RECIPES: "0"
+      # RECIPES_SERVICE_URL: http://recipes-service:8000
+      MOCK_RECIPES: "1"
+      # Когда поднимете auth-service в общей сети compose:
+      # AUTH_SERVICE_URL: http://auth-service:8000
     depends_on:
       planner-db:
         condition: service_healthy

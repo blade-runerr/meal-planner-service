@@ -19,6 +19,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'drf_spectacular',
     'profiles',
+    'plans',
 ]
 
 MIDDLEWARE = [
@@ -99,3 +100,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+
+RECIPES_SERVICE_URL = os.environ.get('RECIPES_SERVICE_URL', '')
+AUTH_SERVICE_URL = os.environ.get('AUTH_SERVICE_URL', '')
+EXTERNAL_SERVICE_TIMEOUT = float(os.environ.get('EXTERNAL_SERVICE_TIMEOUT', '10'))
+# Режим без recipes-service: MOCK_RECIPES=1 — взять встроенный список рецептов (только для разработки).
+MOCK_RECIPES = os.environ.get('MOCK_RECIPES', '').lower() in ('1', 'true', 'yes')
