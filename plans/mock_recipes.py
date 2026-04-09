@@ -2,6 +2,7 @@
 
 
 def get_mock_recipes():
+    """Фиксированный список рецептов для MOCK_RECIPES=1 (без запроса к recipes-service)."""
     return [
         {
             'id': 1,

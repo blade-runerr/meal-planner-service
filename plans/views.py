@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_recipes_client() -> Optional[RecipesServiceClient]:
+    """Клиент recipes-service или None, если RECIPES_SERVICE_URL не задан."""
     base = getattr(settings, 'RECIPES_SERVICE_URL', '') or ''
     if not base:
         return None
@@ -31,6 +32,7 @@ def get_recipes_client() -> Optional[RecipesServiceClient]:
 
 
 def get_auth_client() -> Optional[AuthServiceClient]:
+    """Клиент auth-service или None, если AUTH_SERVICE_URL не задан (проверка пользователя пропускается)."""
     base = getattr(settings, 'AUTH_SERVICE_URL', '') or ''
     if not base:
         return None
@@ -46,6 +48,7 @@ class PlanGenerateView(APIView):
         parameters=[USER_ID_HEADER],
     )
     def post(self, request):
+        """Собирает недельный план, сохраняет MealPlan; требуется X-User-Id и существующий профиль."""
         user_id, error_response = get_user_id_from_request(request)
         if error_response:
             return error_response
@@ -122,6 +125,7 @@ class PlanDetailView(APIView):
         parameters=[USER_ID_HEADER],
     )
     def get(self, request, plan_id: int):
+        """Возвращает план по id только если X-User-Id совпадает с владельцем плана."""
         user_id, error_response = get_user_id_from_request(request)
         if error_response:
             return error_response

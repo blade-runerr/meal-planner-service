@@ -5,12 +5,16 @@ import requests
 
 
 class RecipesServiceClient:
+    """HTTP-клиент к recipes-service: загрузка списка рецептов с учётом пагинации DRF."""
+
     def __init__(self, base_url: str, timeout: float = 10.0, session: Optional[requests.Session] = None):
+        """base_url — корень сервиса; session опционально подставляется для тестов."""
         self.base_url = base_url.rstrip('/')
         self.timeout = timeout
         self.session = session or requests.Session()
 
     def list_recipes(self) -> list[dict[str, Any]]:
+        """GET /recipes/ и все страницы по полю next; поддерживает ответ-список или {results, next}."""
         url = f'{self.base_url}/recipes/'
         collected: list[dict[str, Any]] = []
         while url:
@@ -22,7 +26,6 @@ class RecipesServiceClient:
                 break
             batch = data.get('results')
             if batch is None:
-                collected.extend(data) if data else None
                 break
             collected.extend(batch)
             url = data.get('next')

@@ -2,6 +2,7 @@
 
 
 def _norm_item(item, kind: str):
+    """Возвращает ключ для множества сходства: тег или ингредиент по id либо по имени."""
     if not isinstance(item, dict):
         return (kind, str(item))
     if item.get('id') is not None:
@@ -13,6 +14,7 @@ def _norm_item(item, kind: str):
 
 
 def _signature(recipe: dict) -> set:
+    """Множество нормализованных тегов и ингредиентов рецепта (включая вложенный ключ ingredient)."""
     sig = set()
     for t in recipe.get('tags') or []:
         key = _norm_item(t, 't')
@@ -31,9 +33,7 @@ def _signature(recipe: dict) -> set:
 
 
 def calculate_similarity(recipe1: dict, recipe2: dict) -> float:
-    """
-    Возвращает значение от 0 до 1: 1 — максимальное совпадение наборов тегов и ингредиентов.
-    """
+    """Коэффициент Жаккара по объединённым множествам тегов и ингредиентов; 0..1, у пустых обоих — 1.0."""
     a = _signature(recipe1)
     b = _signature(recipe2)
     if not a and not b:

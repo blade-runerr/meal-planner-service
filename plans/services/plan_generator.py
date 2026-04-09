@@ -12,12 +12,14 @@ CAL_HIGH = 1.32
 
 
 def parse_excluded_ingredients(raw: str) -> set[str]:
+    """Строка профиля «ингредиент1, ингредиент2» → множество имён в нижнем регистре."""
     if not raw or not str(raw).strip():
         return set()
     return {s.strip().lower() for s in str(raw).split(',') if s.strip()}
 
 
 def _flatten_ingredient(ing: Any) -> dict[str, Any]:
+    """Приводит элемент ingredients API к виду {id, name} (учёт вложенного объекта ingredient)."""
     if not isinstance(ing, dict):
         return {'id': None, 'name': str(ing)}
     inner = ing.get('ingredient')
@@ -33,6 +35,7 @@ def _flatten_ingredient(ing: Any) -> dict[str, Any]:
 
 
 def normalize_recipe(raw: dict[str, Any]) -> dict[str, Any]:
+    """Копия рецепта с плоскими ингредиентами и полем calories."""
     r = copy.deepcopy(raw)
     tags = r.get('tags') or []
     ingredients_raw = r.get('ingredients') or []
@@ -53,6 +56,7 @@ def normalize_recipe(raw: dict[str, Any]) -> dict[str, Any]:
 
 
 def recipe_matches_exclusion(recipe: dict[str, Any], excluded: set[str]) -> bool:
+    """True, если у рецепта есть ингредиент с именем или строковым id из множества excluded."""
     if not excluded:
         return False
     for ing in recipe.get('ingredients') or []:
@@ -67,6 +71,7 @@ def recipe_matches_exclusion(recipe: dict[str, Any], excluded: set[str]) -> bool
 
 
 def filter_recipes(recipes: list[dict[str, Any]], excluded: set[str]) -> list[dict[str, Any]]:
+    """Нормализованные рецепты с id, не попадающие под исключения по ингредиентам."""
     out = []
     for raw in recipes:
         if 'id' not in raw:
@@ -79,6 +84,7 @@ def filter_recipes(recipes: list[dict[str, Any]], excluded: set[str]) -> list[di
 
 
 def day_calories_ok(total: int, target: int) -> bool:
+    """Проверка суммы ккал за день на попадание в коридор [CAL_LOW·target, CAL_HIGH·target]."""
     if target <= 0:
         return False
     lo = int(target * CAL_LOW)
@@ -91,6 +97,7 @@ def build_week_payload(
     daily_calories: int,
     excluded_raw: str,
 ) -> dict[str, Any]:
+    """Строит JSON-план: 7 дней по 3 приёма пищи с учётом исключений, ккал и разнообразия блюд."""
     excluded = parse_excluded_ingredients(excluded_raw)
     pool = filter_recipes(recipes, excluded)
     if not pool:
