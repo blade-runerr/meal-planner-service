@@ -156,3 +156,7 @@ postman/                # Postman-коллекция
 - Не коммитьте **`.env`** и реальные API-ключи.
 - Ошибки LLM кешируются ненадолго; при смене кода полезен **сброс Redis** или новый ключ кеша в `suggestions_cache.py`.
 - **`mistral_failed` / `RemoteDisconnected` из Docker:** запросы к Mistral идут из **planner-worker**; при обрывах попробуйте **`MISTRAL_HTTPS_PROXY`** (см. `.env.example`) или запуск воркера на хосте, затем `docker compose build --no-cache`.
+
+## Контакты
+
+- телеграм: @R_79190546003
