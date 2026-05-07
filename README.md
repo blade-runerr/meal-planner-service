@@ -46,7 +46,7 @@
 |------------|--------------|----------|
 | `MISTRAL_API_KEY` | — | API-ключ Mistral |
 | `MISTRAL_API_BASE` | `https://api.mistral.ai/v1` | База API |
-| `MISTRAL_MODEL` | `mistral-small-latest` | Модель (см. доку Mistral) |
+| `MISTRAL_HTTPS_PROXY` / `HTTPS_PROXY` | — | Прокси до Mistral (часто нужен из Docker за NAT/фильтрами) |
 | `REDIS_URL` | `redis://localhost:6379/0` | Celery + кеш |
 | `AI_SUGGESTIONS_CACHE_TTL` | `3600` | TTL подсказок (сек) |
 | `MOCK_RECIPES` | `0` | `1` — мок-рецепты |
@@ -83,4 +83,6 @@ pytest -q
 
 ## Ключи
 
-Не коммитьте секреты. После смены провайдера сбросьте Redis или дождитесь протухания кеша ошибок (~10 мин).
+Не храните ключи в git.
+
+**Сбой `RemoteDisconnected` из Docker:** запросы к Mistral делает **worker**. Попробуйте `MISTRAL_HTTPS_PROXY` на прокси на хосте (см. `.env.example`), либо запускайте worker без Docker. После правок — `docker compose build --no-cache` и сброс Redis.

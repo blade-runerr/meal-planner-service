@@ -41,6 +41,8 @@ services:
       MOCK_RECIPES: "1"
       # Ключ из https://console.mistral.ai — в .env: MISTRAL_API_KEY=...
       MISTRAL_API_KEY: ${MISTRAL_API_KEY}
+      MISTRAL_REQUEST_TIMEOUT: "180"
+      MISTRAL_HTTPS_PROXY: ${MISTRAL_HTTPS_PROXY:-}
       # Когда поднимете auth-service:
       # AUTH_SERVICE_URL: http://auth-service:8000
     depends_on:
@@ -64,8 +66,9 @@ services:
       DB_PORT: "5432"
       REDIS_URL: redis://planner-redis:6379/0
       MOCK_RECIPES: "1"
-      # тот же MISTRAL_API_KEY, что у planner-service
       MISTRAL_API_KEY: ${MISTRAL_API_KEY}
+      MISTRAL_REQUEST_TIMEOUT: "180"
+      MISTRAL_HTTPS_PROXY: ${MISTRAL_HTTPS_PROXY:-}
     depends_on:
       planner-db:
         condition: service_healthy

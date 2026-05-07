@@ -59,7 +59,8 @@ def generate_plan_suggestions(self, plan_id: int, user_id: int) -> dict:
         api_key,
         base_url=getattr(settings, 'MISTRAL_API_BASE', 'https://api.mistral.ai/v1'),
         model=getattr(settings, 'MISTRAL_MODEL', 'mistral-small-latest'),
-        timeout=float(getattr(settings, 'EXTERNAL_SERVICE_TIMEOUT', 120) or 120),
+        timeout=float(getattr(settings, 'MISTRAL_REQUEST_TIMEOUT', 180) or 180),
+        proxy=getattr(settings, 'MISTRAL_HTTPS_PROXY', None),
     )
     try:
         raw = client.chat_completion(messages)

@@ -128,6 +128,11 @@ AI_SUGGESTIONS_CACHE_TTL = int(os.environ.get('AI_SUGGESTIONS_CACHE_TTL', '3600'
 MISTRAL_API_KEY = os.environ.get('MISTRAL_API_KEY', '')
 MISTRAL_API_BASE = os.environ.get('MISTRAL_API_BASE', 'https://api.mistral.ai/v1')
 MISTRAL_MODEL = os.environ.get('MISTRAL_MODEL', 'mistral-small-latest')
+MISTRAL_REQUEST_TIMEOUT = float(os.environ.get('MISTRAL_REQUEST_TIMEOUT', '180'))
+# Опционально: если из Docker до api.mistral.ai рвётся соединение — прокси (или HTTPS_PROXY).
+MISTRAL_HTTPS_PROXY = (
+    os.environ.get('MISTRAL_HTTPS_PROXY') or os.environ.get('HTTPS_PROXY') or ''
+).strip() or None
 
 RECIPES_SERVICE_URL = os.environ.get('RECIPES_SERVICE_URL', '')
 AUTH_SERVICE_URL = os.environ.get('AUTH_SERVICE_URL', '')

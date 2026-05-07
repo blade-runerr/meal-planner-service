@@ -1,6 +1,31 @@
 from __future__ import annotations
 
+import json
 from typing import Any
+
+# Чтобы не раздувать запрос к API и не ловить обрывы соединения на больших телах.
+_MAX_PLAN_JSON_CHARS = 14_000
+
+
+def _slim_plan_for_llm(plan_payload: dict[str, Any]) -> dict[str, Any]:
+    """Компактное представление недели: только день, сумма ккал и блюда без лишних полей."""
+    slim_days = []
+    for d in plan_payload.get('days') or []:
+        slim_days.append(
+            {
+                'day': d.get('day_index'),
+                'kcal': d.get('total_calories'),
+                'meals': [
+                    {'name': m.get('recipe_name'), 'cal': m.get('calories')}
+                    for m in d.get('meals') or []
+                ],
+            }
+        )
+    return {
+        'daily_target': plan_payload.get('daily_target'),
+        'meals_per_day': plan_payload.get('meals_per_day'),
+        'days': slim_days,
+    }
 
 
 def build_suggestions_messages(
@@ -17,7 +42,13 @@ def build_suggestions_messages(
     )
     if excluded_hint:
         user_block += f'Исключённые ингредиенты пользователя: {excluded_hint}\n'
-    user_block += f'Текущий недельный план (JSON):\n{plan_payload}\n'
+
+    slim = _slim_plan_for_llm(plan_payload)
+    plan_txt = json.dumps(slim, ensure_ascii=False, separators=(',', ':'))
+    if len(plan_txt) > _MAX_PLAN_JSON_CHARS:
+        plan_txt = plan_txt[: _MAX_PLAN_JSON_CHARS] + '…'
+
+    user_block += f'Недельный план (компактный JSON):\n{plan_txt}\n'
 
     system = (
         'Ты диетолог-консультант. По переданному плану питания дай краткие, практичные советы на русском. '
