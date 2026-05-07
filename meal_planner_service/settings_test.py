@@ -6,3 +6,15 @@ DATABASES = {
         'NAME': ':memory:',
     }
 }
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    },
+}
+
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True
+
+# Тесты не ходят в Mistral без явного мока
+MISTRAL_API_KEY = ''

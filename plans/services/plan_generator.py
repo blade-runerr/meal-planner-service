@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import itertools
 from typing import Any
 
 from plans.similarity import calculate_similarity
@@ -9,6 +10,8 @@ DAYS_IN_WEEK = 7
 MEALS_PER_DAY = 3
 CAL_LOW = 0.68
 CAL_HIGH = 1.32
+# Перебор комбинаций за день, если жадный алгоритм застрял (у моков 3 рецепта — дёшево).
+_MAX_POOL_BRUTE_FORCE = 24
 
 
 def parse_excluded_ingredients(raw: str) -> set[str]:
@@ -92,6 +95,98 @@ def day_calories_ok(total: int, target: int) -> bool:
     return lo <= total <= hi
 
 
+def _greedy_day_meals(pool: list[dict[str, Any]], daily_calories: int) -> list[dict[str, Any]] | None:
+    """Жадный подбор MEALS_PER_DAY приёмов; None если застряли или сумма вне допуска."""
+    meals: list[dict[str, Any]] = []
+    remaining = daily_calories
+    prev_recipe = None
+
+    for meal_slot in range(MEALS_PER_DAY):
+        slots_left = MEALS_PER_DAY - meal_slot
+        soft_target = max(remaining // slots_left, 1)
+
+        best = None
+        best_key = None
+
+        for cand in pool:
+            cal = cand['calories']
+            if cal > remaining:
+                continue
+            if prev_recipe is not None:
+                sim = calculate_similarity(prev_recipe, cand)
+                diversity = 1.0 - sim
+            else:
+                diversity = 1.0
+            over = max(0, cal - soft_target)
+            key = (diversity, -over, cal)
+            if best_key is None or key > best_key:
+                best = cand
+                best_key = key
+
+        if best is None:
+            for cand in sorted(pool, key=lambda x: x['calories']):
+                if cand['calories'] <= remaining:
+                    best = cand
+                    break
+
+        if best is None:
+            return None
+
+        meals.append(
+            {
+                'recipe_id': best['id'],
+                'recipe_name': best['name'],
+                'calories': best['calories'],
+            }
+        )
+        remaining -= best['calories']
+        prev_recipe = best
+
+    total = sum(m['calories'] for m in meals)
+    if not day_calories_ok(total, daily_calories):
+        return None
+    return meals
+
+
+def _brute_force_day_meals(pool: list[dict[str, Any]], daily_calories: int) -> list[dict[str, Any]]:
+    """Подбор дня полным перебором |pool|^3 (только для малого пула)."""
+    if len(pool) > _MAX_POOL_BRUTE_FORCE:
+        raise ValueError(
+            f'Слишком много рецептов ({len(pool)}) для надёжного подбора без расширенного планировщика'
+        )
+    lo = int(daily_calories * CAL_LOW)
+    hi = int(daily_calories * CAL_HIGH) + 1
+
+    best_combo: tuple[dict[str, Any], ...] | None = None
+    best_key: tuple[float, int] | None = None
+
+    for combo in itertools.product(pool, repeat=MEALS_PER_DAY):
+        total = sum(c['calories'] for c in combo)
+        if not (lo <= total <= hi):
+            continue
+        div = 0.0
+        prev = None
+        for cand in combo:
+            if prev is not None:
+                div += 1.0 - calculate_similarity(prev, cand)
+            prev = cand
+        key = (div, total)
+        if best_key is None or key > best_key:
+            best_key = key
+            best_combo = combo
+
+    if best_combo is None:
+        raise ValueError(
+            f'Невозможно набрать день из доступных рецептов в допуске '
+            f'{CAL_LOW:.0%}–{CAL_HIGH:.0%} от цели {daily_calories} ккал'
+        )
+
+    return [
+        {'recipe_id': c['id'], 'recipe_name': c['name'], 'calories': c['calories']}
+        for c in best_combo
+    ]
+
+
 def build_week_payload(
     recipes: list[dict[str, Any]],
     daily_calories: int,
@@ -105,56 +200,14 @@ def build_week_payload(
 
     days_out: list[dict[str, Any]] = []
     for day_index in range(1, DAYS_IN_WEEK + 1):
-        meals: list[dict[str, Any]] = []
-        remaining = daily_calories
-        prev_recipe = None
-
-        for meal_slot in range(MEALS_PER_DAY):
-            slots_left = MEALS_PER_DAY - meal_slot
-            soft_target = max(remaining // slots_left, 1)
-
-            best = None
-            best_key = None
-
-            for cand in pool:
-                cal = cand['calories']
-                if cal > remaining:
-                    continue
-                if prev_recipe is not None:
-                    sim = calculate_similarity(prev_recipe, cand)
-                    diversity = 1.0 - sim
-                else:
-                    diversity = 1.0
-                over = max(0, cal - soft_target)
-                key = (diversity, -over, cal)
-                if best_key is None or key > best_key:
-                    best = cand
-                    best_key = key
-
-            if best is None:
-                for cand in sorted(pool, key=lambda x: x['calories']):
-                    if cand['calories'] <= remaining:
-                        best = cand
-                        break
-
-            if best is None:
-                raise ValueError(f'Не удалось подобрать приёмы пищи для дня {day_index}')
-
-            meals.append(
-                {
-                    'recipe_id': best['id'],
-                    'recipe_name': best['name'],
-                    'calories': best['calories'],
-                }
-            )
-            remaining -= best['calories']
-            prev_recipe = best
+        meals: list[dict[str, Any]] | None = _greedy_day_meals(pool, daily_calories)
+        if meals is None:
+            try:
+                meals = _brute_force_day_meals(pool, daily_calories)
+            except ValueError as exc:
+                raise ValueError(f'Не удалось подобрать приёмы пищи для дня {day_index}: {exc}') from exc
 
         total = sum(m['calories'] for m in meals)
-        if not day_calories_ok(total, daily_calories):
-            raise ValueError(
-                f'Калорийность дня {day_index} ({total} ккал) вне допуска от цели {daily_calories} ккал'
-            )
 
         days_out.append(
             {

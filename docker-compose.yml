@@ -39,8 +39,33 @@ services:
       # MOCK_RECIPES: "0"
       # RECIPES_SERVICE_URL: http://recipes-service:8000
       MOCK_RECIPES: "1"
-      # Когда поднимете auth-service в общей сети compose:
+      # Ключ из https://console.mistral.ai — в .env: MISTRAL_API_KEY=...
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY}
+      # Когда поднимете auth-service:
       # AUTH_SERVICE_URL: http://auth-service:8000
+    depends_on:
+      planner-db:
+        condition: service_healthy
+      planner-redis:
+        condition: service_started
+
+  planner-worker:
+    build: .
+    container_name: planner-worker
+    command: celery -A meal_planner_service worker -l info
+    environment:
+      SECRET_KEY: django-insecure-dev-key-change-in-production
+      DEBUG: "True"
+      ALLOWED_HOSTS: "localhost 127.0.0.1 planner-worker"
+      DB_NAME: planner_db
+      DB_USER: planner_user
+      DB_PASSWORD: planner_pass
+      DB_HOST: planner-db
+      DB_PORT: "5432"
+      REDIS_URL: redis://planner-redis:6379/0
+      MOCK_RECIPES: "1"
+      # тот же MISTRAL_API_KEY, что у planner-service
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY}
     depends_on:
       planner-db:
         condition: service_healthy

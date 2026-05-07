@@ -100,6 +100,34 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+
+_redis_url = os.environ.get('REDIS_URL', '').strip()
+if _redis_url:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': _redis_url,
+            'OPTIONS': {},
+            'KEY_PREFIX': 'meal_planner',
+        },
+    }
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        },
+    }
+
+AI_SUGGESTIONS_CACHE_TTL = int(os.environ.get('AI_SUGGESTIONS_CACHE_TTL', '3600'))
+
+# Mistral: ключ из https://console.mistral.ai
+MISTRAL_API_KEY = os.environ.get('MISTRAL_API_KEY', '')
+MISTRAL_API_BASE = os.environ.get('MISTRAL_API_BASE', 'https://api.mistral.ai/v1')
+MISTRAL_MODEL = os.environ.get('MISTRAL_MODEL', 'mistral-small-latest')
 
 RECIPES_SERVICE_URL = os.environ.get('RECIPES_SERVICE_URL', '')
 AUTH_SERVICE_URL = os.environ.get('AUTH_SERVICE_URL', '')

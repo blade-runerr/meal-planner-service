@@ -5,6 +5,7 @@ from typing import Optional
 
 import requests
 from django.conf import settings
+from django.core.cache import cache
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.response import Response
@@ -18,6 +19,8 @@ from .mock_recipes import get_mock_recipes
 from .models import MealPlan
 from .serializers import MealPlanSerializer
 from .services.plan_generator import build_week_payload
+from .services.suggestions_cache import suggestions_cache_key
+from .tasks import generate_plan_suggestions
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +118,61 @@ class PlanGenerateView(APIView):
             payload=payload,
         )
         return Response(MealPlanSerializer(plan).data, status=status.HTTP_201_CREATED)
+
+
+def _respond_suggestions_cached(cached: dict):
+    err = cached.get('error')
+    if err == 'plan_not_found':
+        return Response(cached, status=status.HTTP_404_NOT_FOUND)
+    if err in (
+        'mistral_not_configured',
+        'grok_not_configured',
+        'deepseek_not_configured',
+    ):
+        return Response(cached, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+    if err in ('mistral_failed', 'grok_failed', 'deepseek_failed'):
+        return Response(cached, status=status.HTTP_502_BAD_GATEWAY)
+    return Response(cached, status=status.HTTP_200_OK)
+
+
+class PlanSuggestionsView(APIView):
+
+    @extend_schema(
+        summary='AI-подсказки по плану (кеш Redis, Mistral)',
+        responses={200: None, 202: None, 403: None, 404: None},
+        parameters=[USER_ID_HEADER],
+    )
+    def get(self, request, plan_id: int):
+        """Возвращает закешированные рекомендации или ставит задачу Celery и отвечает 202."""
+        user_id, error_response = get_user_id_from_request(request)
+        if error_response:
+            return error_response
+
+        try:
+            plan = MealPlan.objects.get(pk=plan_id)
+        except MealPlan.DoesNotExist:
+            return Response({'error': 'План не найден'}, status=status.HTTP_404_NOT_FOUND)
+
+        if plan.user_id != user_id:
+            return Response({'error': 'Доступ к чужому плану запрещён'}, status=status.HTTP_403_FORBIDDEN)
+
+        key = suggestions_cache_key(user_id, plan_id)
+        cached = cache.get(key)
+        if cached is not None:
+            return _respond_suggestions_cached(cached)
+
+        generate_plan_suggestions.delay(plan_id, user_id)
+        cached = cache.get(key)
+        if cached is not None:
+            return _respond_suggestions_cached(cached)
+
+        return Response(
+            {
+                'status': 'pending',
+                'message': 'Рекомендации генерируются, повторите запрос через несколько секунд',
+            },
+            status=status.HTTP_202_ACCEPTED,
+        )
 
 
 class PlanDetailView(APIView):
