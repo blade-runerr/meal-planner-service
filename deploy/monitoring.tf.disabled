@@ -1,0 +1,96 @@
+resource "helm_release" "kube_prometheus_stack" {
+  name             = "monitoring"
+  repository       = "https://prometheus-community.github.io/helm-charts"
+  chart            = "kube-prometheus-stack"
+  version          = var.kube_prometheus_stack_version
+  namespace        = "monitoring"
+  create_namespace = true
+
+  values = [yamlencode({
+    alertmanager = {
+      enabled = false
+    }
+
+    grafana = {
+      adminPassword = var.grafana_admin_password
+      persistence = {
+        enabled = false
+      }
+      resources = {
+        requests = { cpu = "25m", memory = "48Mi" }
+        limits   = { cpu = "100m", memory = "100Mi" }
+      }
+      service = {
+        type     = "NodePort"
+        nodePort = var.grafana_node_port
+      }
+    }
+
+    prometheus = {
+      prometheusSpec = {
+        retention = "1h"
+        resources = {
+          requests = { cpu = "50m", memory = "96Mi" }
+          limits   = { cpu = "200m", memory = "200Mi" }
+        }
+        serviceMonitorSelectorNilUsesHelmValues = false
+      }
+    }
+
+    prometheusOperator = {
+      resources = {
+        requests = { cpu = "25m", memory = "32Mi" }
+        limits   = { cpu = "50m", memory = "64Mi" }
+      }
+    }
+
+    "kube-state-metrics" = {
+      resources = {
+        requests = { cpu = "10m", memory = "32Mi" }
+        limits   = { cpu = "50m", memory = "64Mi" }
+      }
+    }
+
+    "prometheus-node-exporter" = {
+      resources = {
+        requests = { cpu = "10m", memory = "16Mi" }
+        limits   = { cpu = "50m", memory = "32Mi" }
+      }
+    }
+
+    kubeScheduler          = { enabled = false }
+    kubeControllerManager  = { enabled = false }
+    kubeEtcd               = { enabled = false }
+    kubeProxy              = { enabled = false }
+  })]
+}
+
+resource "kubernetes_manifest" "app_service_monitor" {
+  manifest = {
+    apiVersion = "monitoring.coreos.com/v1"
+    kind       = "ServiceMonitor"
+    metadata = {
+      name      = "meal-planner-web"
+      namespace = kubernetes_namespace.meal_planner.metadata[0].name
+    }
+    spec = {
+      selector = {
+        matchLabels = {
+          app = "meal-planner-web"
+        }
+      }
+      namespaceSelector = {
+        matchNames = [kubernetes_namespace.meal_planner.metadata[0].name]
+      }
+      endpoints = [
+        {
+          port     = "http"
+          path     = "/metrics"
+          interval = "15s"
+        }
+      ]
+    }
+  }
+
+  depends_on = [helm_release.kube_prometheus_stack, kubernetes_service.web]
+}

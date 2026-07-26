@@ -1,0 +1,6 @@
+# Copy to terraform.tfvars (gitignored) and fill in real values.
+
+secret_key             = "replace-with-a-long-random-string"
+db_password            = "replace-with-a-strong-password"
+mistral_api_key        = "replace-with-your-real-mistral-api-key"
+grafana_admin_password = "replace-with-a-demo-password"
