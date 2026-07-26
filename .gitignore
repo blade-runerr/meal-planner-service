@@ -28,3 +28,9 @@ htmlcov/
 
 # Docker
 *.env
+
+# Terraform (deploy/)
+deploy/.terraform/
+deploy/*.tfstate
+deploy/*.tfstate.*
+deploy/terraform.tfvars

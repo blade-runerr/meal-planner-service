@@ -10,6 +10,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+RUN groupadd -r django && useradd -r -g django django
+USER django
+
 EXPOSE 8000
 
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["gunicorn", "meal_planner_service.wsgi:application", \
+     "--bind", "0.0.0.0:8000", \
+     "--workers", "2", "--threads", "2", "--timeout", "190", \
+     "--access-logfile", "-", "--error-logfile", "-"]
